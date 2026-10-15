@@ -27,6 +27,7 @@ class TaskResponse(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
+    run_id: Optional[str] = None
 
 
 # --- Step & Log Schemas ---
@@ -74,6 +75,8 @@ class VerificationReportResponse(BaseModel):
     total_assertions: int
     details: Dict[str, Any]
     created_at: datetime
+    task_id: Optional[str] = None
+    task_title: Optional[str] = None
 
 
 # --- Run Schemas ---
@@ -95,6 +98,25 @@ class RunResponse(BaseModel):
     inject_failure: bool
     error_details: Optional[str] = None
     summary: Optional[str] = None
+    task: Optional[TaskResponse] = None
+
+
+class MatchingResultDetailResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    run_id: str
+    opportunity_id: str
+    candidate_id: str
+    eligibility: str
+    explanation: str
+    created_at: datetime
+    opportunity_title: Optional[str] = None
+    company: Optional[str] = None
+    location: Optional[str] = None
+    deadline: Optional[str] = None
+    source_description: Optional[str] = None
+    dataset_type: Optional[str] = "sample_demo_data"
 
 
 class RunDetailResponse(RunResponse):
@@ -104,6 +126,8 @@ class RunDetailResponse(RunResponse):
     steps: List[StepResponse]
     logs: List[LogResponse]
     verification_report: Optional[VerificationReportResponse] = None
+    matching_results: List[MatchingResultDetailResponse] = []
+    approvals: List['ApprovalResponse'] = []
 
 
 # --- Approval Schemas ---
@@ -117,24 +141,27 @@ class ApprovalResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    run_id: Optional[str]
+    run_id: Optional[str] = None
     action_type: str
     title: str
     status: str
     risk_level: str
-    recipient: Optional[str]
-    subject: Optional[str]
+    recipient: Optional[str] = None
+    subject: Optional[str] = None
     body_preview: str
     guardrails: List[str]
     initiator: str
     reason: str
-    decision_by: Optional[str]
-    decision_timestamp: Optional[datetime]
-    decision_reason: Optional[str]
+    decision_by: Optional[str] = None
+    decision_timestamp: Optional[datetime] = None
+    decision_reason: Optional[str] = None
     created_at: datetime
     executed: bool
-    execution_timestamp: Optional[datetime]
-    execution_result: Optional[str]
+    execution_timestamp: Optional[datetime] = None
+    execution_result: Optional[str] = None
+    task_id: Optional[str] = None
+    task_title: Optional[str] = None
+    task_description: Optional[str] = None
 
 
 class ProtectedActionExecutionResponse(BaseModel):

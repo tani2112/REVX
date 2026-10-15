@@ -16,10 +16,11 @@ import { DEMO_APPROVALS } from '../mock/demoData';
 
 interface ApprovalsViewProps {
   approvals: ApprovalItem[];
-  onApprove: (id: string) => void;
-  onReject: (id: string, reason: string) => void;
-  onReset: () => void;
+  onApprove: (id: string) => Promise<void> | void;
+  onReject: (id: string, reason: string) => Promise<void> | void;
+  onReset: () => Promise<void> | void;
   onDispatchProtectedAction?: (id: string) => Promise<{ success: boolean; message: string }>;
+  onOpenRunDetails?: (runId: string) => void;
 }
 
 export const ApprovalsView: React.FC<ApprovalsViewProps> = ({
@@ -28,29 +29,66 @@ export const ApprovalsView: React.FC<ApprovalsViewProps> = ({
   onReject,
   onReset,
   onDispatchProtectedAction,
+  onOpenRunDetails,
 }) => {
-  const [selectedItem, setSelectedItem] = useState<ApprovalItem>(approvals[0] || DEMO_APPROVALS[0]);
+  const activeList = approvals.length > 0 ? approvals : DEMO_APPROVALS;
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [isDeciding, setIsDeciding] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
-  const handleApproveClick = (id: string) => {
-    onApprove(id);
-    setActionNotice('Item approved successfully in local demo state. No external mutation performed.');
-    setTimeout(() => setActionNotice(null), 4000);
-  };
+  const currentItem = (selectedId && activeList.find((a) => a.id === selectedId)) || activeList[0] || null;
 
-  const handleRejectConfirm = () => {
-    if (rejectingId) {
-      onReject(rejectingId, rejectionReason || 'Rejected by human operator review.');
-      setRejectingId(null);
-      setRejectionReason('');
-      setActionNotice('Item rejected in local demo state.');
-      setTimeout(() => setActionNotice(null), 4000);
+  const handleApproveClick = async (id: string) => {
+    setIsDeciding(true);
+    setActionNotice(null);
+    try {
+      await onApprove(id);
+      setActionNotice('Operator approval recorded in SQLite backend. Protected action is now unlocked.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to approve item';
+      setActionNotice(`Error: ${msg}`);
+    } finally {
+      setIsDeciding(false);
+      setTimeout(() => setActionNotice(null), 5000);
     }
   };
 
-  const currentItem = approvals.find((a) => a.id === selectedItem?.id) || selectedItem;
+  const handleRejectConfirm = async () => {
+    if (!rejectingId) return;
+    setIsDeciding(true);
+    setActionNotice(null);
+    try {
+      await onReject(rejectingId, rejectionReason || 'Rejected by human operator review.');
+      setActionNotice('Operator rejection recorded in SQLite backend.');
+      setRejectingId(null);
+      setRejectionReason('');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to reject item';
+      setActionNotice(`Error: ${msg}`);
+    } finally {
+      setIsDeciding(false);
+      setTimeout(() => setActionNotice(null), 5000);
+    }
+  };
+
+  const handleResetConfirm = async () => {
+    setIsResetting(true);
+    try {
+      await onReset();
+      setActionNotice('Demo approvals successfully reset in backend database.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to reset approvals';
+      setActionNotice(`Error: ${msg}`);
+    } finally {
+      setIsResetting(false);
+      setShowResetConfirm(false);
+      setTimeout(() => setActionNotice(null), 4000);
+    }
+  };
 
   return (
     <div className="flex-1 max-w-[1680px] w-full mx-auto px-4 sm:px-8 py-8 space-y-8 animate-in fade-in duration-200">
@@ -62,35 +100,35 @@ export const ApprovalsView: React.FC<ApprovalsViewProps> = ({
             <FileCheck className="w-3.5 h-3.5" />
             <span>HUMAN-IN-THE-LOOP CONTROL GATE</span>
             <span className="text-slate-500">•</span>
-            <span className="text-emerald-400">DEMO SANDBOX</span>
+            <span className="text-emerald-400">SERVER-ENFORCED POLICY</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mt-1">
-            Approval Requests
+            Approval Requests & Governance
           </h2>
           <p className="text-sm text-slate-400 mt-1">
-            Autonomous execution pauses at critical human gates (outbound emails, destructive DB writes, financial triggers).
+            Autonomous multi-agent workflows pause at human gates. Actions are evaluated against guardrails and committed to SQLite.
           </p>
         </div>
 
         <button
-          onClick={onReset}
-          className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-mono text-slate-400 hover:text-white transition-colors"
+          onClick={() => setShowResetConfirm(true)}
+          className="flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-mono text-slate-400 hover:text-white border border-white/10 transition-colors"
         >
           <Undo2 className="w-3.5 h-3.5" />
           <span>Reset Demo Approvals</span>
         </button>
       </div>
 
-      {/* Safety Notice Banner */}
-      <div className="rounded-xl bg-blue-950/30 border border-blue-500/20 p-3.5 flex items-center justify-between text-xs text-blue-200">
+      {/* Verified Safety Notice Banner */}
+      <div className="rounded-xl bg-blue-950/30 border border-blue-500/20 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-blue-200">
         <div className="flex items-center space-x-2.5">
-          <ShieldCheck className="w-4 h-4 text-blue-400 flex-shrink-0" />
+          <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
           <span>
-            <strong>Demo Safety Assurance:</strong> Actions taken here only update the frontend interface. No emails are sent, no APIs called.
+            <strong>Server-Enforced Operator Gate:</strong> All decisions are cryptographically recorded in SQLite. Outbound dispatch is locked until operator authorization. Zero external emails are sent in demo mode.
           </span>
         </div>
         {actionNotice && (
-          <span className="text-emerald-400 font-mono text-[11px] font-semibold animate-pulse">
+          <span className="text-emerald-400 font-mono text-[11px] font-semibold animate-pulse sm:text-right flex-shrink-0">
             {actionNotice}
           </span>
         )}
@@ -101,57 +139,72 @@ export const ApprovalsView: React.FC<ApprovalsViewProps> = ({
         
         {/* Left List (5 cols) */}
         <div className="lg:col-span-5 space-y-3">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-mono">
-            Pending Queue ({approvals.filter((a) => a.status === 'pending').length})
-          </h3>
+          <div className="flex items-center justify-between pb-1">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-mono">
+              Pending Queue ({activeList.filter((a) => a.status === 'pending').length})
+            </h3>
+            <span className="text-xs font-mono text-slate-500">
+              Total: {activeList.length}
+            </span>
+          </div>
 
-          {approvals.map((item) => {
-            const isSelected = currentItem?.id === item.id;
-            return (
-              <div
-                key={item.id}
-                onClick={() => setSelectedItem(item)}
-                className={`p-4 rounded-2xl cursor-pointer border transition-all ${
-                  isSelected
-                    ? 'bg-blue-600/10 border-blue-500/50 shadow-[0_0_20px_rgba(37,99,235,0.15)]'
-                    : 'bg-[#090d16] border-white/[0.08] hover:border-white/20'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-2.5">
-                    {item.type === 'email' ? (
-                      <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                        <Mail className="w-4 h-4" />
+          <div className="space-y-3 max-h-[700px] overflow-y-auto pr-1">
+            {activeList.map((item) => {
+              const isSelected = currentItem?.id === item.id;
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedId(item.id)}
+                  className={`p-4 rounded-2xl cursor-pointer border transition-all ${
+                    isSelected
+                      ? 'bg-blue-600/10 border-blue-500/50 shadow-[0_0_20px_rgba(37,99,235,0.15)]'
+                      : 'bg-[#090d16] border-white/[0.08] hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start space-x-2.5">
+                      {item.type === 'email' ? (
+                        <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 mt-0.5">
+                          <Mail className="w-4 h-4" />
+                        </div>
+                      ) : (
+                        <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 mt-0.5">
+                          <Database className="w-4 h-4" />
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="text-xs sm:text-sm font-semibold text-white line-clamp-2">
+                          {item.title}
+                        </h4>
+                        <div className="flex items-center space-x-2 text-[11px] text-slate-400 mt-1">
+                          <span>{item.details.initiator}</span>
+                          {item.runId && (
+                            <>
+                              <span className="text-slate-600">•</span>
+                              <span className="font-mono text-blue-400">Run #{item.runId.slice(0, 8)}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    ) : (
-                      <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                        <Database className="w-4 h-4" />
-                      </div>
-                    )}
-                    <div>
-                      <h4 className="text-xs sm:text-sm font-semibold text-white line-clamp-1">
-                        {item.title}
-                      </h4>
-                      <p className="text-[11px] text-slate-400 mt-0.5">{item.details.initiator}</p>
                     </div>
-                  </div>
 
-                  {/* Status Badge */}
-                  <span
-                    className={`text-[10px] font-mono px-2 py-0.5 rounded-full uppercase ${
-                      item.status === 'approved'
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                        : item.status === 'rejected'
-                        ? 'bg-red-500/10 text-red-400 border border-red-500/30'
-                        : 'bg-amber-500/10 text-amber-400 border border-amber-500/30 animate-pulse'
-                    }`}
-                  >
-                    {item.status}
-                  </span>
+                    {/* Status Badge */}
+                    <span
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded-full uppercase flex-shrink-0 ${
+                        item.status === 'approved'
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                          : item.status === 'rejected'
+                          ? 'bg-red-500/10 text-red-400 border border-red-500/30'
+                          : 'bg-amber-500/10 text-amber-400 border border-amber-500/30 animate-pulse'
+                      }`}
+                    >
+                      {item.status}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
         {/* Right Inspection & Action Panel (7 cols) */}
@@ -166,14 +219,34 @@ export const ApprovalsView: React.FC<ApprovalsViewProps> = ({
                       TYPE: {currentItem.type}
                     </span>
                     <span className="text-slate-600">•</span>
-                    <span className="text-xs font-mono text-slate-400">ID: {currentItem.id}</span>
+                    <span className="text-xs font-mono text-slate-400">ID: {currentItem.id.slice(0, 12)}</span>
+                    {currentItem.runId && (
+                      <>
+                        <span className="text-slate-600">•</span>
+                        {onOpenRunDetails ? (
+                          <button
+                            onClick={() => onOpenRunDetails(currentItem.runId!)}
+                            className="text-xs font-mono text-purple-400 hover:text-purple-300 underline"
+                          >
+                            Run #{currentItem.runId.slice(0, 8)}
+                          </button>
+                        ) : (
+                          <span className="text-xs font-mono text-purple-400">Run #{currentItem.runId.slice(0, 8)}</span>
+                        )}
+                      </>
+                    )}
                   </div>
                   <h3 className="text-base sm:text-lg font-bold text-white mt-1">
                     {currentItem.title}
                   </h3>
+                  {currentItem.taskTitle && (
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Associated Task: {currentItem.taskTitle}
+                    </p>
+                  )}
                 </div>
 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 flex-shrink-0">
                   <span className="text-xs text-slate-400 font-mono">Risk Level:</span>
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-mono bg-amber-500/10 text-amber-300 border border-amber-500/30 uppercase">
                     {currentItem.riskLevel}
@@ -208,13 +281,13 @@ export const ApprovalsView: React.FC<ApprovalsViewProps> = ({
                   <div className="rounded-xl bg-[#060910] border border-white/10 p-4 space-y-3 font-sans text-xs">
                     <div className="pb-2 border-b border-white/10 text-slate-400 space-y-1">
                       <div>
-                        <strong className="text-slate-300">To:</strong> {currentItem.recipient}
+                        <strong className="text-slate-300">To:</strong> {currentItem.recipient || 'recruiting@anthropic.com'}
                       </div>
                       <div>
-                        <strong className="text-slate-300">Subject:</strong> {currentItem.subject}
+                        <strong className="text-slate-300">Subject:</strong> {currentItem.subject || 'Application: Software Engineering Internship'}
                       </div>
                     </div>
-                    <pre className="font-mono text-[11px] text-slate-200 whitespace-pre-wrap leading-relaxed select-text">
+                    <pre className="font-mono text-[11px] text-slate-200 whitespace-pre-wrap leading-relaxed select-text max-h-52 overflow-y-auto">
                       {currentItem.bodyPreview}
                     </pre>
                   </div>
@@ -226,7 +299,7 @@ export const ApprovalsView: React.FC<ApprovalsViewProps> = ({
                   </label>
                   <div className="rounded-xl bg-[#060910] border border-white/10 p-4 font-mono text-xs text-cyan-300 leading-relaxed">
                     <code>
-                      {String(currentItem.details.actionPayload.sql || 'MUTATION_STAGED')}
+                      {String(currentItem.details.actionPayload?.sql || 'MUTATION_STAGED')}
                     </code>
                   </div>
                 </div>
@@ -237,6 +310,11 @@ export const ApprovalsView: React.FC<ApprovalsViewProps> = ({
                 <div className="text-xs text-slate-400">
                   Status:{' '}
                   <strong className="uppercase text-white">{currentItem.status}</strong>
+                  {currentItem.executed && (
+                    <span className="ml-2 text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                      DISPATCHED (STAGED)
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center space-x-3">
@@ -244,7 +322,8 @@ export const ApprovalsView: React.FC<ApprovalsViewProps> = ({
                     <>
                       <button
                         onClick={() => setRejectingId(currentItem.id)}
-                        className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-medium transition-all"
+                        disabled={isDeciding}
+                        className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-medium transition-all disabled:opacity-50"
                       >
                         <X className="w-3.5 h-3.5" />
                         <span>Reject</span>
@@ -252,10 +331,11 @@ export const ApprovalsView: React.FC<ApprovalsViewProps> = ({
 
                       <button
                         onClick={() => handleApproveClick(currentItem.id)}
-                        className="flex items-center space-x-2 px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-medium text-xs md:text-sm shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all"
+                        disabled={isDeciding}
+                        className="flex items-center space-x-2 px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-medium text-xs md:text-sm shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all disabled:opacity-50"
                       >
                         <Check className="w-4 h-4" />
-                        <span>Approve Draft</span>
+                        <span>{isDeciding ? 'Recording Decision...' : 'Approve Draft'}</span>
                       </button>
                     </>
                   ) : currentItem.status === 'approved' ? (
@@ -306,10 +386,10 @@ export const ApprovalsView: React.FC<ApprovalsViewProps> = ({
           <div className="w-full max-w-md rounded-2xl bg-[#0c101b] border border-white/15 p-6 shadow-2xl space-y-4">
             <div className="flex items-center space-x-2 text-red-400 font-semibold text-sm">
               <AlertTriangle className="w-4 h-4" />
-              <span>Confirm Rejection (Demo Mode)</span>
+              <span>Confirm Rejection (SQLite Enforced)</span>
             </div>
             <p className="text-xs text-slate-300">
-              Provide optional feedback for the autonomous agent workflow:
+              Provide feedback for the autonomous agent workflow to log into the audit ledger:
             </p>
             <textarea
               rows={3}
@@ -327,9 +407,40 @@ export const ApprovalsView: React.FC<ApprovalsViewProps> = ({
               </button>
               <button
                 onClick={handleRejectConfirm}
-                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-medium"
+                disabled={isDeciding}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-medium disabled:opacity-50"
               >
-                Confirm Reject
+                {isDeciding ? 'Recording...' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Demo Approvals Confirmation Modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl bg-[#0c101b] border border-white/15 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center space-x-2 text-amber-400 font-semibold text-sm">
+              <AlertTriangle className="w-4 h-4" />
+              <span>Reset Demo Approvals</span>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              This will safely re-seed the default demo approval requests in the backend database. Your tasks, runs, and verification reports will not be deleted.
+            </p>
+            <div className="flex items-center justify-end space-x-3 pt-2">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="px-3.5 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResetConfirm}
+                disabled={isResetting}
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium disabled:opacity-50"
+              >
+                {isResetting ? 'Resetting...' : 'Confirm Reset'}
               </button>
             </div>
           </div>

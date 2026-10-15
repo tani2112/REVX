@@ -18,9 +18,17 @@ def parse_report_response(vr: VerificationReport) -> dict:
     except Exception:
         pass
 
+    task_id = None
+    task_title = None
+    if vr.run and vr.run.task:
+        task_id = vr.run.task.id
+        task_title = vr.run.task.title
+
     return {
         "id": vr.id,
         "run_id": vr.run_id,
+        "task_id": task_id,
+        "task_title": task_title,
         "target": vr.target,
         "record_type": vr.record_type,
         "status": vr.status,

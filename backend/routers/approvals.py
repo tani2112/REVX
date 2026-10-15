@@ -22,9 +22,20 @@ def parse_approval_response(app: ApprovalRequest) -> dict:
     except Exception:
         pass
 
+    task_id = None
+    task_title = None
+    task_desc = None
+    if app.run and app.run.task:
+        task_id = app.run.task.id
+        task_title = app.run.task.title
+        task_desc = app.run.task.description
+
     return {
         "id": app.id,
         "run_id": app.run_id,
+        "task_id": task_id,
+        "task_title": task_title,
+        "task_description": task_desc,
         "action_type": app.action_type,
         "title": app.title,
         "status": app.status,

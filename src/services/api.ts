@@ -14,6 +14,21 @@ export interface BackendTask {
   description: string;
   status: string;
   created_at: string;
+  run_id?: string;
+}
+
+export interface BackendRun {
+  id: string;
+  task_id: string;
+  status: string;
+  started_at: string;
+  completed_at?: string;
+  attempt_count: number;
+  max_retries: number;
+  inject_failure: boolean;
+  error_details?: string;
+  summary?: string;
+  task?: BackendTask;
 }
 
 export interface BackendStep {
@@ -56,6 +71,8 @@ export interface BackendVerificationReport {
     sha256?: string;
   };
   created_at: string;
+  task_id?: string;
+  task_title?: string;
 }
 
 export interface BackendApproval {
@@ -77,11 +94,31 @@ export interface BackendApproval {
   created_at: string;
   executed: boolean;
   execution_result?: string;
+  task_id?: string;
+  task_title?: string;
+  task_description?: string;
+}
+
+export interface BackendMatchingResultDetail {
+  id: string;
+  run_id: string;
+  opportunity_id: string;
+  candidate_id: string;
+  eligibility: 'eligible' | 'ineligible' | 'insufficient_info';
+  explanation: string;
+  created_at: string;
+  opportunity_title?: string;
+  company?: string;
+  location?: string;
+  deadline?: string;
+  source_description?: string;
+  dataset_type?: string;
 }
 
 export interface BackendRunDetail {
   id: string;
   task_id: string;
+  task?: BackendTask;
   status: string;
   started_at: string;
   completed_at?: string;
@@ -93,6 +130,8 @@ export interface BackendRunDetail {
   steps: BackendStep[];
   logs: BackendLog[];
   verification_report?: BackendVerificationReport;
+  matching_results?: BackendMatchingResultDetail[];
+  approvals?: BackendApproval[];
 }
 
 // Map backend step to UI WorkflowStep
@@ -145,11 +184,15 @@ export function mapBackendVerification(v: BackendVerificationReport): Verificati
     target: v.target,
     recordType: v.record_type,
     hash: `${v.sha256_digest.slice(0, 8)}...${v.sha256_digest.slice(-6)}`,
+    fullHash: v.sha256_digest,
     assertionsPassed: v.assertions_passed,
     totalAssertions: v.total_assertions,
     status: v.status === 'verified' ? 'verified' : 'flagged',
     timestamp: new Date(v.created_at).toLocaleTimeString(),
     samplePayload: v.details as Record<string, unknown>,
+    runId: v.run_id,
+    taskId: v.task_id,
+    taskTitle: v.task_title,
   };
 }
 
@@ -165,6 +208,11 @@ export function mapBackendApproval(a: BackendApproval): ApprovalItem {
     recipient: a.recipient,
     subject: a.subject,
     bodyPreview: a.body_preview,
+    runId: a.run_id,
+    taskId: a.task_id,
+    taskTitle: a.task_title,
+    taskDescription: a.task_description,
+    executed: a.executed,
     details: {
       initiator: a.initiator,
       reason: a.reason,
@@ -183,6 +231,12 @@ export const api = {
   async getHealth(): Promise<BackendHealth> {
     const res = await fetch(`${API_BASE_URL}/health`);
     if (!res.ok) throw new Error(`Health check failed: ${res.statusText}`);
+    return res.json();
+  },
+
+  async getRuns(): Promise<BackendRun[]> {
+    const res = await fetch(`${API_BASE_URL}/api/runs`);
+    if (!res.ok) throw new Error(`Failed to fetch runs: ${res.statusText}`);
     return res.json();
   },
 
@@ -253,6 +307,12 @@ export const api = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || `Action rejected with HTTP ${res.status}`);
     }
+    return res.json();
+  },
+
+  async getRunResults(runId: string): Promise<BackendMatchingResultDetail[]> {
+    const res = await fetch(`${API_BASE_URL}/api/runs/${runId}/results`);
+    if (!res.ok) throw new Error(`Failed to fetch run results: ${res.statusText}`);
     return res.json();
   },
 

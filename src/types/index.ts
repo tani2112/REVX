@@ -1,4 +1,4 @@
-export type NavTab = 'workspace' | 'runs' | 'verification' | 'approvals';
+export type NavTab = 'workspace' | 'runs' | 'verification' | 'approvals' | 'execution' | 'results';
 
 export type StepStatus = 'completed' | 'running' | 'recovering' | 'pending' | 'failed';
 
@@ -38,11 +38,15 @@ export interface VerificationRecord {
   target: string;
   recordType: string;
   hash: string;
+  fullHash?: string;
   assertionsPassed: number;
   totalAssertions: number;
   status: 'verified' | 'flagged' | 'pending';
   timestamp: string;
   samplePayload: Record<string, unknown>;
+  runId?: string;
+  taskId?: string;
+  taskTitle?: string;
 }
 
 export interface ApprovalItem {
@@ -55,11 +59,36 @@ export interface ApprovalItem {
   recipient?: string;
   subject?: string;
   bodyPreview?: string;
+  runId?: string;
+  taskId?: string;
+  taskTitle?: string;
+  taskDescription?: string;
+  executed?: boolean;
   details: {
     initiator: string;
     reason: string;
     guardrailsPassed: string[];
     actionPayload: Record<string, unknown>;
+  };
+}
+
+export interface BackendRunSummary {
+  id: string;
+  task_id: string;
+  status: string;
+  started_at: string;
+  completed_at?: string;
+  attempt_count: number;
+  max_retries: number;
+  inject_failure: boolean;
+  error_details?: string;
+  summary?: string;
+  task?: {
+    id: string;
+    title: string;
+    description: string;
+    status: string;
+    created_at: string;
   };
 }
 

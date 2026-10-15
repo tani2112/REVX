@@ -11,6 +11,7 @@ from backend.schemas import (
     StepResponse,
     LogResponse,
     VerificationReportResponse,
+    MatchingResultDetailResponse,
 )
 from backend.services.workflow_engine import execute_workflow, log_audit
 
@@ -40,6 +41,56 @@ def format_run_detail(run: Run) -> dict:
             "created_at": vr.created_at,
         }
 
+    matching_results_data = []
+    if run.matching_results:
+        for mr in run.matching_results:
+            opp = mr.opportunity
+            matching_results_data.append({
+                "id": mr.id,
+                "run_id": mr.run_id,
+                "opportunity_id": mr.opportunity_id,
+                "candidate_id": mr.candidate_id,
+                "eligibility": mr.eligibility,
+                "explanation": mr.explanation,
+                "created_at": mr.created_at,
+                "opportunity_title": opp.title if opp else None,
+                "company": opp.company if opp else None,
+                "location": opp.location if opp else None,
+                "deadline": opp.deadline if opp else None,
+                "source_description": opp.source_description if opp else None,
+                "dataset_type": opp.dataset_type if opp else "sample_demo_data",
+            })
+
+    approvals_data = []
+    if run.approvals:
+        for a in run.approvals:
+            guardrails = []
+            try:
+                guardrails = json.loads(a.guardrails_json)
+            except Exception:
+                pass
+            approvals_data.append({
+                "id": a.id,
+                "run_id": a.run_id,
+                "action_type": a.action_type,
+                "title": a.title,
+                "status": a.status,
+                "risk_level": a.risk_level,
+                "recipient": a.recipient,
+                "subject": a.subject,
+                "body_preview": a.body_preview,
+                "guardrails": guardrails,
+                "initiator": a.initiator,
+                "reason": a.reason,
+                "decision_by": a.decision_by,
+                "decision_timestamp": a.decision_timestamp,
+                "decision_reason": a.decision_reason,
+                "created_at": a.created_at,
+                "executed": a.executed,
+                "execution_timestamp": a.execution_timestamp,
+                "execution_result": a.execution_result,
+            })
+
     return {
         "id": run.id,
         "task_id": run.task_id,
@@ -55,6 +106,8 @@ def format_run_detail(run: Run) -> dict:
         "steps": run.steps,
         "logs": run.logs,
         "verification_report": v_report_data,
+        "matching_results": matching_results_data,
+        "approvals": approvals_data,
     }
 
 
@@ -154,3 +207,13 @@ def retry_run(run_id: str, db: Session = Depends(get_db)):
     execute_workflow(db, run)
     log_audit(db, "run", run.id, "run_retried", "Operator", {"attempt": run.attempt_count})
     return run
+
+
+@router.get("/{run_id}/results", response_model=List[MatchingResultDetailResponse])
+def get_run_results(run_id: str, db: Session = Depends(get_db)):
+    """Retrieves the matching opportunity results for a specific run."""
+    run = db.query(Run).filter(Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Run '{run_id}' not found.")
+    return format_run_detail(run)["matching_results"]
+

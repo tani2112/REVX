@@ -5,6 +5,7 @@ import {
   ShieldCheck,
   FileCheck,
   ChevronDown,
+  Sparkles,
 } from 'lucide-react';
 import type { NavTab } from '../types';
 
@@ -104,6 +105,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               )}
             </button>
+            {/* 5. Results (when active) */}
+            {currentTab === 'results' && (
+              <button
+                id="nav-results-tab"
+                onClick={() => onTabChange('results')}
+                className="flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-medium bg-blue-500/15 text-blue-300 border border-blue-500/30 shadow-[0_2px_12px_rgba(37,99,235,0.3)] animate-in fade-in"
+              >
+                <Sparkles className="w-3.5 h-3.5 opacity-90 text-blue-400" />
+                <span>Task Results</span>
+              </button>
+            )}
+
+            {/* 6. Execution (when active) */}
+            {currentTab === 'execution' && (
+              <div className="flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-in fade-in">
+                <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+                <span>Executing...</span>
+              </div>
+            )}
           </nav>
         </div>
 

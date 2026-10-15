@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { GalaxyCanvas } from './GalaxyCanvas';
 import { ExecutionStrip } from './ExecutionStrip';
+import { VoiceAssistantButton } from './VoiceAssistantButton';
 import type { WorkflowStep, DemoTaskPreset } from '../types';
 import { DEMO_PRESETS } from '../mock/demoData';
 
@@ -21,6 +22,7 @@ interface WorkspaceViewProps {
   isSimulating: boolean;
   selectedStepId?: string;
   onSelectPhase: (phase: 'PLAN' | 'EXECUTE' | 'VERIFY') => void;
+  submissionError?: string | null;
 }
 
 export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
@@ -30,27 +32,39 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
   isSimulating,
   selectedStepId,
   onSelectPhase,
+  submissionError,
 }) => {
   const [taskInput, setTaskInput] = useState('');
   const [showPresetsMenu, setShowPresetsMenu] = useState(false);
   const [activePreset, setActivePreset] = useState<DemoTaskPreset | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSelectPreset = (preset: DemoTaskPreset) => {
     setActivePreset(preset);
     setTaskInput(preset.prompt);
     setShowPresetsMenu(false);
+    setValidationError(null);
+  };
+
+  const handleClearPreset = () => {
+    setActivePreset(null);
+    setTaskInput('');
+    setValidationError(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!taskInput.trim() && !activePreset) {
-      // Pick default preset if empty
-      const defaultPreset = DEMO_PRESETS[0];
-      setTaskInput(defaultPreset.prompt);
-      onSimulateRun(defaultPreset.prompt, defaultPreset);
+    if (isSimulating) return; // Prevent duplicate submissions
+
+    const trimmedInput = taskInput.trim();
+    if (!trimmedInput && !activePreset) {
+      setValidationError('Please enter a task description or select a sample data preset.');
       return;
     }
-    onSimulateRun(taskInput, activePreset || undefined);
+
+    setValidationError(null);
+    const finalPrompt = trimmedInput || (activePreset ? activePreset.prompt : '');
+    onSimulateRun(finalPrompt, activePreset || undefined);
   };
 
   return (
@@ -92,15 +106,49 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
             {/* Upper row: Document Icon + Textarea */}
             <div className="flex items-start space-x-3">
               <FileText className="w-4 h-4 text-slate-400 mt-1 flex-shrink-0" />
-              <textarea
-                id="task-input-field"
-                rows={3}
-                value={taskInput}
-                onChange={(e) => setTaskInput(e.target.value)}
-                placeholder="Describe a task for REVX..."
-                className="w-full bg-transparent text-sm md:text-[15px] text-white placeholder-slate-500 focus:outline-none resize-none leading-relaxed font-sans"
-              />
+              <div className="w-full space-y-1.5">
+                {activePreset && (
+                  <div className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/30 text-[11px] font-mono text-blue-300">
+                    <Sparkles className="w-3 h-3 text-blue-400" />
+                    <span>Scenario: {activePreset.title}</span>
+                    <button
+                      type="button"
+                      onClick={handleClearPreset}
+                      className="ml-1 text-slate-400 hover:text-white"
+                      title="Clear preset"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+                <textarea
+                  id="task-input-field"
+                  rows={3}
+                  value={taskInput}
+                  disabled={isSimulating}
+                  onChange={(e) => {
+                    setTaskInput(e.target.value);
+                    if (validationError) setValidationError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSubmit(e);
+                    }
+                  }}
+                  placeholder="Describe a task for REVX (e.g. Find Fall 2026 AI/ML Software Engineering Internships with remote work and sponsor verification)..."
+                  className="w-full bg-transparent text-sm md:text-[15px] text-white placeholder-slate-500 focus:outline-none resize-none leading-relaxed font-sans disabled:opacity-60"
+                />
+              </div>
             </div>
+
+            {/* Validation / Submission Error Alerts */}
+            {(validationError || submissionError) && (
+              <div className="mt-2 p-2.5 rounded-xl bg-red-950/40 border border-red-500/30 text-xs font-mono text-red-300 flex items-center space-x-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
+                <span>{validationError || submissionError}</span>
+              </div>
+            )}
 
             {/* Bottom Row inside Input Container */}
             <div className="mt-3 pt-3 border-t border-white/[0.08] flex items-center justify-between gap-2 flex-wrap">
@@ -116,6 +164,15 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
                 >
                   <Paperclip className="w-4 h-4" />
                 </button>
+
+                {/* Voice Assistant Microphone Button */}
+                <VoiceAssistantButton
+                  disabled={isSimulating}
+                  onTranscript={(transcript) => {
+                    setTaskInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+                    if (validationError) setValidationError(null);
+                  }}
+                />
 
                 {/* "Use sample data v" Dropdown Pill */}
                 <div className="relative">
@@ -162,21 +219,26 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
                 </div>
               </div>
 
-              {/* Right action: "Run task >" Button */}
-              <button
-                type="submit"
-                id="run-task-button"
-                disabled={isSimulating}
-                className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-medium text-xs md:text-sm shadow-[0_0_20px_rgba(37,99,235,0.5)] hover:shadow-[0_0_28px_rgba(59,130,246,0.7)] transition-all duration-200 disabled:opacity-70 group"
-              >
-                {isSimulating ? (
-                  <RotateCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                )}
-                <span>{isSimulating ? 'Executing demo...' : 'Run task'}</span>
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-              </button>
+              {/* Right action: "Run task >" Button + Shortcut hint */}
+              <div className="flex items-center space-x-2">
+                <span className="hidden sm:inline-block text-[11px] font-mono text-slate-500">
+                  Ctrl+↵
+                </span>
+                <button
+                  type="submit"
+                  id="run-task-button"
+                  disabled={isSimulating}
+                  className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-medium text-xs md:text-sm shadow-[0_0_20px_rgba(37,99,235,0.5)] hover:shadow-[0_0_28px_rgba(59,130,246,0.7)] transition-all duration-200 disabled:opacity-70 group"
+                >
+                  {isSimulating ? (
+                    <RotateCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                  )}
+                  <span>{isSimulating ? 'Executing demo...' : 'Run task'}</span>
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              </div>
             </div>
           </form>
 

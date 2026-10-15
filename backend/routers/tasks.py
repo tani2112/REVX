@@ -54,7 +54,15 @@ def create_task(req: TaskCreateRequest, db: Session = Depends(get_db)):
 
     log_audit(db, "task", task.id, "task_created", "HumanOperator", {"title": task.title, "run_id": run.id})
 
-    return task
+    return TaskResponse(
+        id=task.id,
+        title=task.title,
+        description=task.description,
+        status=task.status,
+        created_at=task.created_at,
+        updated_at=task.updated_at,
+        run_id=run.id,
+    )
 
 
 @router.get("", response_model=List[TaskResponse])

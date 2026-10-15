@@ -382,19 +382,24 @@ def execute_workflow(db: Session, run: Run) -> Run:
     # Check if an approval already exists for this run to avoid duplicates on retry
     existing_approval = db.query(ApprovalRequest).filter(ApprovalRequest.run_id == run.id).first()
     if not existing_approval:
-        companies_str = ", ".join(companies_matched)
+        from backend.models import Task
+        task = run.task or db.query(Task).filter(Task.id == run.task_id).first()
+        task_title = task.title if task and task.title else "Internship Application"
+        task_desc = task.description if task and task.description else task_title
+        companies_str = ", ".join(companies_matched) if companies_matched else "Target Companies"
+
         email_approval = ApprovalRequest(
             id=generate_uuid(),
             run_id=run.id,
             action_type="outreach_email",
-            title=f"Outreach Email: {len(matched_evaluations)} Verified Internship Applications ({companies_str})",
+            title=f"Outreach Draft: {task_title} ({companies_str})",
             status="pending",
             risk_level="medium",
             recipient=", ".join([f"recruiting@{c.lower().replace(' ', '')}.com" for c in companies_matched]),
-            subject="Application & Portfolio Submission: Systems & AI Engineering Intern (2026)",
+            subject=f"Application Submission: {task_title}",
             body_preview=f"""Dear University Recruiting Teams ({companies_str}),
 
-I am pleased to submit my verified portfolio for the 2026 Engineering internships. Through REVX autonomous orchestration, my qualifications have been matched, recovered, and cryptographically verified against your prerequisites.
+I am pleased to submit my verified portfolio for: '{task_desc}'. Through REVX autonomous orchestration, my qualifications have been matched, recovered, and cryptographically verified against your prerequisites.
 
 Verified Matches:
 {chr(10).join([f'• {opp.company}: {opp.title} ({eval_data["explanation"]})' for opp, eval_data in matched_evaluations])}
@@ -411,7 +416,7 @@ Sincerely,
                 "Rate limit check: 3/50 daily quota utilized",
             ]),
             initiator="Agent: OutreachSupervisor_v1",
-            reason="Requires explicit human operator approval before email is dispatched.",
+            reason=f"Requires explicit human operator approval before outreach email for '{task_title}' can be dispatched.",
             created_at=utc_now(),
         )
         db.add(email_approval)
