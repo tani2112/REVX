@@ -28,17 +28,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS Middleware configured for local frontend origins
-origins = [
+# CORS Middleware configured for local development and Render deployment
+allowed_origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+custom_origins = os.environ.get("ALLOWED_ORIGINS")
+if custom_origins:
+    allowed_origins.extend([o.strip() for o in custom_origins.split(",") if o.strip()])
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=allowed_origins if custom_origins else ["*"],
+    allow_origin_regex=r"https://.*\.onrender\.com",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
