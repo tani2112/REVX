@@ -11,12 +11,10 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
 
-  # 2. React / Vite Frontend Static Site
+  # 2. React / Vite Frontend Static Site (Global CDN - no region needed)
   - type: web
     name: revx-frontend
     runtime: static
-    plan: free
-    region: oregon
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     routes:
