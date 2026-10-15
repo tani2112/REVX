@@ -11,20 +11,40 @@ import {
 import { DEMO_VERIFICATIONS } from '../mock/demoData';
 import type { VerificationRecord } from '../types';
 
-export const VerificationView: React.FC = () => {
-  const [records] = useState<VerificationRecord[]>(DEMO_VERIFICATIONS);
-  const [selectedRecord, setSelectedRecord] = useState<VerificationRecord | null>(DEMO_VERIFICATIONS[0]);
+interface VerificationViewProps {
+  records?: VerificationRecord[];
+  onReverify?: () => Promise<void>;
+}
+
+export const VerificationView: React.FC<VerificationViewProps> = ({
+  records: propRecords,
+  onReverify,
+}) => {
+  const activeRecords = propRecords && propRecords.length > 0 ? propRecords : DEMO_VERIFICATIONS;
+  const [selectedRecord, setSelectedRecord] = useState<VerificationRecord | null>(activeRecords[0]);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifySuccess, setVerifySuccess] = useState(false);
 
-  const handleRunVerify = () => {
+  const handleRunVerify = async () => {
     setIsVerifying(true);
     setVerifySuccess(false);
-    setTimeout(() => {
-      setIsVerifying(false);
-      setVerifySuccess(true);
-      setTimeout(() => setVerifySuccess(false), 3000);
-    }, 1200);
+    if (onReverify) {
+      try {
+        await onReverify();
+        setVerifySuccess(true);
+      } catch (err) {
+        console.error('Reverify error:', err);
+      } finally {
+        setIsVerifying(false);
+        setTimeout(() => setVerifySuccess(false), 3000);
+      }
+    } else {
+      setTimeout(() => {
+        setIsVerifying(false);
+        setVerifySuccess(true);
+        setTimeout(() => setVerifySuccess(false), 3000);
+      }, 1200);
+    }
   };
 
   return (
@@ -116,11 +136,11 @@ export const VerificationView: React.FC = () => {
         <div className="lg:col-span-7 rounded-2xl bg-[#090d16] border border-white/[0.08] overflow-hidden shadow-xl">
           <div className="p-4 border-b border-white/10 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-white">Verified Record Targets</h3>
-            <span className="text-xs font-mono text-slate-500">{records.length} Targets Verified</span>
+            <span className="text-xs font-mono text-slate-500">{activeRecords.length} Targets Verified</span>
           </div>
 
           <div className="divide-y divide-white/5">
-            {records.map((rec) => {
+            {activeRecords.map((rec) => {
               const isSelected = selectedRecord?.id === rec.id;
               return (
                 <div

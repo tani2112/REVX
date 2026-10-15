@@ -5,74 +5,92 @@ An autonomous AI operator that plans multi-step workflows, coordinates tools, tr
 
 ---
 
-## Frontend Architecture & UI Design
+## Architecture Overview
 
-A cinematic, space-inspired, high-density developer console inspired by astronomical observatories and aerospace telemetry dashboards.
-
-### Key Visual & Functional Elements
-
-1. **Top Navigation Bar**:
-   - `REVX` wordmark with electric-blue brand accent.
-   - Clean view tabs: **Workspace**, **Runs**, **Verification**, **Approvals** with live notification counter.
-   - **Backend Status Pill**: Glowing green pulse indicating operational status (`Demo Sandbox Mode`).
-   - Operator profile badge (`R`).
-
-2. **Hero Section & Autonomous Task Prompt**:
-   - High-impact headline:
-     - `Recover.`
-     - `Execute.` *(Electric blue #3b82f6)*
-     - `Verify.`
-   - Tagline: *Autonomous workflows. Observable execution. Verified outcomes.*
-   - Task input console with document staging, sample scenario presets dropdown, and `Run task >` demo trigger.
-
-3. **Galaxy Visualization**:
-   - High-performance HTML5 Canvas rendering ~1,500 particles along logarithmic spiral arms.
-   - Luminous galactic core with multi-layer radial gradient flares.
-   - Color grading: Brilliant white starlight, electric blue outer arms, and warm gold/amber clusters.
-   - Elliptical dashed orbital paths with inclination tilt.
-   - 3 interactive callout nodes with angled leader lines and phase descriptions:
-     - **PLAN**: *Understand, Break down, Select tools*
-     - **EXECUTE**: *Run steps, Handle failures, Recover safely*
-     - **VERIFY**: *Check results, Read back data, Confirm outcomes*
-   - Fully accessible, interactive, and respects `prefers-reduced-motion`.
-
-4. **Execution Status Strip (Bottom Dock)**:
-   - Docked floating status bar showing real-time workflow phases:
-     - `01 Research internships` (Completed with green progress bar)
-     - `02 Save results` (Autonomous recovery with pulsing blue bar)
-     - `03 Verify records` (Pending verification check)
-   - `View details >` trigger opening a comprehensive slide-over inspection modal.
-
-5. **Frontend Demo Views**:
-   - **Workspace**: Main cinematic galaxy command center with prompt input and status dock.
-   - **Runs**: Step-by-step timeline, autonomous fault recovery spotlight (SQLite lock contention & exponential backoff with jitter), and live terminal logs viewer with filter tabs.
-   - **Verification**: Cryptographic assertions ledger (SHA-256 state hashes, schema checks, mathematical balance invariants, tamper-proof audit trails).
-   - **Approvals**: Human-in-the-loop control gate with outreach email drafts, SQL migrations, pre-dispatch guardrails checklist, and functional demo Approve/Reject actions.
+REVX provides an end-to-end autonomous workflow orchestration system composed of:
+1. **Frontend**: React 19, Vite, TypeScript, and Vanilla CSS with a cinematic dark space observatory aesthetic, animated galaxy visualization, and real-time execution observability.
+2. **Backend**: Python 3, FastAPI, SQLAlchemy, and SQLite (`./revx.db`).
+3. **Core Workflow Engine**: Deterministic candidate-to-opportunity matcher, controlled failure injection, exponential backoff with jitter, idempotency token guarantees, independent cryptographic read-back verification, and server-side authorization enforcement.
 
 ---
 
-## Getting Started
+## Quick Start (Local Run)
 
-### Prerequisites
-- Node.js (v20+ recommended)
-- npm
+### 1. Prerequisites
+- **Node.js**: v20+ recommended
+- **Python**: v3.10+ (tested with Python 3.14)
+- **Git**
 
-### Installation
+### 2. Backend Setup & Run
+
+In a terminal:
 ```bash
-npm install
+# 1. Create and activate Python virtual environment
+python3 -m venv backend/venv
+source backend/venv/bin/activate
+
+# 2. Install backend dependencies
+pip install -r backend/requirements.txt
+
+# 3. Start the FastAPI backend server
+uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
+- The backend will start on **`http://127.0.0.1:8000`**
+- Interactive OpenAPI Docs: **`http://127.0.0.1:8000/docs`**
+- Health Check: **`http://127.0.0.1:8000/health`**
 
-### Development Server
+### 3. Frontend Setup & Run
+
+In a second terminal:
 ```bash
+# 1. Install frontend dependencies
+npm install
+
+# 2. Launch Vite development server
 npm run dev
 ```
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+Open **`http://localhost:5173`** in your browser.
 
-### Production Build & Typecheck
+---
+
+## Running the Automated Test Suite
+
+### Backend Test Suite (Pytest)
+```bash
+PYTHONPATH=. backend/venv/bin/pytest backend/tests/test_backend.py -v
+```
+Tests cover:
+- Health and database connectivity
+- Task creation, validation, and retrieval
+- Multi-step workflow execution
+- Deterministic candidate matching
+- Controlled failure injection and autonomous recovery
+- Idempotency protection against duplicate writes
+- Independent read-back cryptographic verification
+- Approval state transitions and 409 conflict detection
+- Server-side authorization gate (403 Forbidden enforcement on unapproved actions)
+
+### Frontend Typecheck & Production Build
 ```bash
 npm run build
 ```
 
+### Frontend Code Quality (Oxlint)
+```bash
+npm run lint
+```
+
 ---
 
-*Note: This milestone contains strictly frontend UI code and local simulated mock states with zero backend mutations or external network dependencies.*
+## Demo Workflow: Internship Opportunity Research
+
+1. **Describe a Task**: Enter a prompt or select a sample scenario preset (e.g. *Research internships & verify*).
+2. **Execute (Step 01)**: The engine queries seeded opportunities (Stripe, DeepMind, Figma) and applies deterministic qualification rules.
+3. **Controlled Failure & Autonomous Recovery (Step 02)**: In demo mode, a simulated storage lock contention is caught; REVX applies exponential backoff with jitter and commits records idempotently with zero duplicates.
+4. **Independent Cryptographic Verification (Step 03)**: The verifier reads back stored rows, verifies constraints, and seals the state with a SHA-256 digest.
+5. **Human Approval Gate**: An outreach email draft is prepared and held pending in the Approvals queue. Calling protected actions without prior human approval is strictly blocked by the backend (`403 Forbidden`).
+
+---
+
+## Technical Specifications
+Detailed REST API endpoint contracts, schemas, and error codes are documented in [docs/API-contract.md](file:///home/tanishk/REVX/docs/API-contract.md).

@@ -12,12 +12,14 @@ interface NavbarProps {
   currentTab: NavTab;
   onTabChange: (tab: NavTab) => void;
   pendingApprovalsCount: number;
+  isBackendOnline?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentTab,
   onTabChange,
   pendingApprovalsCount,
+  isBackendOnline = true,
 }) => {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -118,15 +120,27 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="backend-status-pill"
               onClick={() => setShowStatusModal(!showStatusModal)}
-              className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-950/20 hover:bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-xs font-medium transition-all"
+              className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
+                isBackendOnline
+                  ? 'bg-emerald-950/20 hover:bg-emerald-950/40 border-emerald-500/30 text-emerald-400'
+                  : 'bg-amber-950/20 hover:bg-amber-950/40 border-amber-500/30 text-amber-400'
+              }`}
             >
-              {/* Glowing green dot */}
+              {/* Glowing dot */}
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                <span
+                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                    isBackendOnline ? 'bg-emerald-400' : 'bg-amber-400'
+                  }`}
+                />
+                <span
+                  className={`relative inline-flex rounded-full h-2 w-2 ${
+                    isBackendOnline ? 'bg-emerald-500' : 'bg-amber-500'
+                  }`}
+                />
               </span>
-              <span className="hidden sm:inline">Backend Online</span>
-              <ChevronDown className="w-3 h-3 text-emerald-400/70" />
+              <span className="hidden sm:inline">{isBackendOnline ? 'Backend Online' : 'Local Fallback'}</span>
+              <ChevronDown className={`w-3 h-3 ${isBackendOnline ? 'text-emerald-400/70' : 'text-amber-400/70'}`} />
             </button>
 
             {/* Dropdown status details */}

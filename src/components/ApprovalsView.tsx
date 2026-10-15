@@ -19,6 +19,7 @@ interface ApprovalsViewProps {
   onApprove: (id: string) => void;
   onReject: (id: string, reason: string) => void;
   onReset: () => void;
+  onDispatchProtectedAction?: (id: string) => Promise<{ success: boolean; message: string }>;
 }
 
 export const ApprovalsView: React.FC<ApprovalsViewProps> = ({
@@ -26,6 +27,7 @@ export const ApprovalsView: React.FC<ApprovalsViewProps> = ({
   onApprove,
   onReject,
   onReset,
+  onDispatchProtectedAction,
 }) => {
   const [selectedItem, setSelectedItem] = useState<ApprovalItem>(approvals[0] || DEMO_APPROVALS[0]);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
@@ -253,13 +255,32 @@ export const ApprovalsView: React.FC<ApprovalsViewProps> = ({
                         className="flex items-center space-x-2 px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-medium text-xs md:text-sm shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all"
                       >
                         <Check className="w-4 h-4" />
-                        <span>Approve & Dispatch (Demo)</span>
+                        <span>Approve Draft</span>
                       </button>
                     </>
                   ) : currentItem.status === 'approved' ? (
-                    <div className="flex items-center space-x-2 text-emerald-400 text-xs font-mono">
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Approved by Human Operator</span>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                      <div className="flex items-center space-x-2 text-emerald-400 text-xs font-mono">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Approved by Human Operator</span>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (onDispatchProtectedAction) {
+                            try {
+                              const res = await onDispatchProtectedAction(currentItem.id);
+                              setActionNotice(res.message);
+                            } catch (err: unknown) {
+                              const message = err instanceof Error ? err.message : 'Action blocked';
+                              setActionNotice(message);
+                            }
+                          }
+                        }}
+                        className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-mono transition-all"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>Execute Protected Action</span>
+                      </button>
                     </div>
                   ) : (
                     <div className="flex items-center space-x-2 text-red-400 text-xs font-mono">
